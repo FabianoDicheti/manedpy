@@ -1,0 +1,2 @@
+# libmaned_c.{dylib,so} lands here at wheel-build time, copied out of the
+# maned-capi-$VERSION-$target.tar.gz release artifact (MANEDPY_PLAN.md §4).

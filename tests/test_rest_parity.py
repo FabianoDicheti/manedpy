@@ -29,11 +29,31 @@ _DIR = (
 )
 _ALL = load_cases(_DIR) if _DIR and os.path.isdir(_DIR) else []
 
-# maned-serve has no flag for MND_SYNTHESIZE_OUTPUTS, so a case that needs
-# one has no HTTP counterpart to compare against. Excluded here rather than
-# silently mis-compared; the conformance walker still covers it.
+#: mnd_open flag name -> the maned-serve flag that sets the same bit. A case
+#: whose flags are all spellable here is loaded identically on both sides and
+#: can be compared; one naming a flag with no CLI counterpart is EXCLUDED
+#: rather than silently compared against a differently-loaded server. The
+#: conformance walker still covers those in-process.
+_SERVE_FLAGS = {
+    "synthesize_outputs": "--synthesize-outputs",
+    "no_vm_fallback": "--no-vm-fallback",
+}
+
+
+def _serve_args(request_spec):
+    """The CLI flags for this case, or None when one has no CLI spelling."""
+    args = []
+    for flag in request_spec.get("flags", []):
+        if flag not in _SERVE_FLAGS:
+            return None
+        args.append(_SERVE_FLAGS[flag])
+    return args
+
+
 _PARITY = [
-    c for c in _ALL if c[2]["target"] == "/run.json" and not c[2].get("flags")
+    c
+    for c in _ALL
+    if c[2]["target"] == "/run.json" and _serve_args(c[2]) is not None
 ]
 
 
@@ -66,7 +86,9 @@ def test_run_json_parity(maned_serve, name, script, request_spec, expected):
     with mnd.load(script, reload=True, **flags_of(request_spec)) as s:
         in_process = s.request("POST", "/run.json", None, body)
 
-    with ServeProcess(maned_serve, script, max_requests=8) as server:
+    with ServeProcess(
+        maned_serve, script, max_requests=8, extra_args=_serve_args(request_spec)
+    ) as server:
         status, content_type, over_http = _post(server.port, "/run.json", body)
 
     assert status == in_process.status, name
@@ -106,3 +128,21 @@ def test_health_parity_is_structural(maned_serve):
 
 def test_parity_corpus_is_not_empty():
     assert _PARITY, "no /run.json cases found — gate 5 would be vacuous"
+
+
+def test_flagged_cases_are_in_the_gate():
+    """A flag the CLI cannot spell silently shrinks gate 5; say so loudly.
+
+    Every /run.json case in the corpus must be comparable: if one names a
+    flag with no maned-serve counterpart it drops out of _PARITY above, and
+    the gate gets quietly weaker rather than red.
+    """
+    flagged = [c for c in _ALL if c[2]["target"] == "/run.json" and c[2].get("flags")]
+    if not flagged:
+        pytest.skip("no flagged /run.json cases in this corpus")
+    covered = {c[0] for c in _PARITY}
+    missing = [c[0] for c in flagged if c[0] not in covered]
+    assert not missing, (
+        "no maned-serve flag for %s — those cases are excluded from gate 5"
+        % missing
+    )

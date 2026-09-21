@@ -110,10 +110,13 @@ def free_port():
 class ServeProcess:
     """A maned-serve subprocess, ready to accept when __enter__ returns."""
 
-    def __init__(self, binary, script, max_requests):
+    def __init__(self, binary, script, max_requests, extra_args=()):
         self.binary = binary
         self.script = script
         self.max_requests = max_requests
+        #: The CLI spellings of the mnd_open flags the case asked for, so the
+        #: subprocess is loaded exactly the way the in-process handle was.
+        self.extra_args = list(extra_args)
         self.port = None
         self.process = None
 
@@ -129,7 +132,8 @@ class ServeProcess:
                     str(self.port),
                     "--max-requests",
                     str(self.max_requests),
-                ],
+                ]
+                + self.extra_args,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )

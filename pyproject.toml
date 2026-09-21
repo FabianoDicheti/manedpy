@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "manedpy"
-version = "0.0.0"
-description = "Call .mnd scripts from Python, in-process (scaffold; not functional yet)"
+version = "0.1.0"
+description = "Call .mnd scripts from Python, in-process"
 readme = "README.md"
 requires-python = ">=3.9"
 # Once the wheel bundles libmaned_c this MUST become license-files listing both
@@ -13,5 +13,22 @@ requires-python = ">=3.9"
 # SPDX "Apache-2.0" would misdescribe the wheel.
 license = { file = "LICENSE" }
 
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
 [tool.setuptools]
 packages = ["manedpy"]
+
+[tool.setuptools.package-data]
+# The wheel-building CI drops the library here out of maned-capi-$VERSION-$target.tar.gz;
+# a source checkout leaves it empty and relies on $MANEDPY_LIB.
+manedpy = ["_lib/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The package is importable straight out of the checkout — there is no
+# extension module to build, so `pip install -e .` buys nothing here.
+pythonpath = ["."]
+# $MANEDPY_LIB selects the libmaned_c under test; tests/conftest.py falls back
+# to a sibling capi-freeze/ checkout so `pytest` works with no environment.
+addopts = "-q"

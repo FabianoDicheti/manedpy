@@ -6,6 +6,11 @@ dict IS the contract; the accessors are sugar.
 
 
 class Result(dict):
+    #: .raw (original response bytes) and .status are attached by Script.run;
+    #: declared here so a Result built by hand still answers them.
+    raw = b""
+    status = None
+
     @property
     def outputs(self):
         return self.get("outputs", {})
@@ -22,4 +27,13 @@ class Result(dict):
     def notes(self):
         return self.get("notes", [])
 
-    # .raw (original bytes) and .status are attached by Script.run.
+    def __repr__(self):
+        return "Result(%s)" % dict.__repr__(self)
+
+
+def build(document, raw, status):
+    """The one place a Result is stamped with its response bytes and status."""
+    result = Result(document)
+    result.raw = raw
+    result.status = status
+    return result

@@ -41,7 +41,7 @@ trap restore EXIT
 echo "== sdist (no binary)"
 rm -f manedpy/_lib/libmaned_c.*
 "$PY" -m build --sdist >/dev/null
-tar tzf "dist/manedpy-$VERSION.tar.gz" | grep -q 'libmaned_c' \
+tar tzf "dist/manedpy-$VERSION.tar.gz" | grep -q '_lib/libmaned_c' \
   && { echo "sdist carries a binary - refusing" >&2; exit 1; } || true
 
 build_one() {

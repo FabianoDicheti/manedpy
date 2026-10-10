@@ -4,11 +4,12 @@ The whole design in one assertion. For every /run.json case in the corpus,
 maned-serve answers the same body over HTTP that manedpy's raw request path
 answers in-process, byte for byte.
 
-Scope, per MANEDPY_PLAN.md Phase 1's note: /run.json only. /run and /frame
-salt the multipart boundary with requests_served, and /health embeds both
-requests_served and the script path — the in-process handle and the
-subprocess can never agree on either, so /health is compared structurally
-instead.
+Scope, per MANEDPY_PLAN.md Phase 1's note: the corpus walk is /run.json only.
+/run and /frame salt the multipart RESPONSE boundary with requests_served, and
+/health embeds both requests_served and the script path — the in-process handle
+and the subprocess can never agree on either, so /health is compared
+structurally and the multipart file route is compared after decoding, which is
+what a caller actually sees.
 """
 
 import http.client
@@ -18,6 +19,7 @@ import os
 import pytest
 
 from manedpy import maned as mnd
+from manedpy.script import decode_multipart, encode_multipart
 
 from conftest import ServeProcess, flags_of, load_cases
 
@@ -124,6 +126,91 @@ def test_health_parity_is_structural(maned_serve):
     assert "requests_served" not in local, "Script.health() must not expose it"
     for field in ("status", "flows", "inputs", "outputs", "profiles", "routes"):
         assert local[field] == remote[field], field
+
+
+def _corpus(name):
+    if not _DIR or not os.path.isdir(_DIR):
+        pytest.skip("no conformance corpus")
+    return os.path.join(_DIR, name)
+
+
+def test_run_multipart_parity_after_decoding(maned_serve):
+    """The file route, over a socket and in-process, agree part for part.
+
+    Not byte for byte: the RESPONSE boundary is salted with requests_served,
+    which the two processes count differently — that is framing, not payload.
+    The parts are the payload, and they are what every binding hands back.
+    """
+    script = _corpus("04_multi_output.mnd")
+    files = {"h0": b"3,1\n2,4\n"}
+    boundary = "paritygate0001"
+
+    with mnd.load(script, reload=True) as s:
+        local = s.run_files(**files)
+
+    with ServeProcess(maned_serve, script, max_requests=4) as server:
+        status, content_type, raw = _post(
+            server.port,
+            "/run",
+            encode_multipart(boundary, files),
+            "multipart/form-data; boundary=" + boundary,
+        )
+
+    assert status == 200
+    assert content_type.lower().startswith("multipart/")
+    assert decode_multipart(content_type, raw) == local
+    assert local == {"a": b"7,9\n2,4\n", "t": b"7,2\n9,4\n"}
+
+
+def test_run_single_output_parity_is_byte_exact(maned_serve):
+    """One output means one bare file and no multipart framing at all — so
+    this half of the route IS byte-comparable, boundary or no boundary."""
+    script = _corpus("01_local_matmul.mnd")
+    files = {"h0": b"3,1\n2,4\n"}
+    boundary = "paritygate0002"
+
+    with mnd.load(script, reload=True) as s:
+        in_process = s.request(
+            "POST",
+            "/run",
+            "multipart/form-data; boundary=" + boundary,
+            encode_multipart(boundary, files),
+        )
+        local = s.run_files(**files)
+
+    with ServeProcess(maned_serve, script, max_requests=4) as server:
+        status, content_type, raw = _post(
+            server.port,
+            "/run",
+            encode_multipart(boundary, files),
+            "multipart/form-data; boundary=" + boundary,
+        )
+
+    assert status == in_process.status == 200
+    assert content_type == in_process.content_type
+    assert raw == in_process.body
+    # ...and run_files keys the bare body by the one declared out:: name.
+    assert local == {"a": raw}
+
+
+def test_frame_routes_parity(maned_serve):
+    """/frame and /frame.csv carry no boundary, so both are byte-comparable."""
+    script = _corpus("03_frame_records.mnd")
+    body = b'{"t":[{"a":1,"b":2},{"a":3,"b":4}]}'
+
+    with mnd.load(script, reload=True) as s:
+        local_frame = s.request("POST", "/frame", None, body)
+        local_csv = s.frame_csv({"t": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
+
+    with ServeProcess(maned_serve, script, max_requests=6) as server:
+        frame_status, frame_type, remote_frame = _post(server.port, "/frame", body)
+        csv_status, csv_type, remote_csv = _post(server.port, "/frame.csv", body)
+
+    assert (frame_status, csv_status) == (200, 200)
+    assert frame_type == local_frame.content_type
+    assert remote_frame == local_frame.body
+    assert csv_type.startswith("text/csv")
+    assert remote_csv == local_csv == b"a,b\n1,2\n3,4\n"
 
 
 def test_parity_corpus_is_not_empty():

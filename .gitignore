@@ -6,3 +6,4 @@ dist/
 build/
 .venv/
 manedpy/_lib/libmaned_c.*
+.venv/

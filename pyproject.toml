@@ -1,17 +1,24 @@
 [build-system]
-requires = ["setuptools>=68"]
+# setuptools>=77 for PEP 639 (license expression + license-files below).
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "manedpy"
-version = "0.1.0"
+version = "0.4.0"
 description = "Call .mnd scripts from Python, in-process"
 readme = "README.md"
 requires-python = ">=3.9"
-# Once the wheel bundles libmaned_c this MUST become license-files listing both
-# LICENSE (Apache-2.0) and LICENSE-libmaned_c — see MANEDPY_PLAN.md §8.2. A bare
-# SPDX "Apache-2.0" would misdescribe the wheel.
-license = { file = "LICENSE" }
+# The wheel is mixed-licence (MANEDPY_PLAN.md §8.2): the wrapper is Apache-2.0,
+# the bundled libmaned_c is proprietary-but-redistributable under the Maned
+# EULA §3. A bare "Apache-2.0" would misdescribe the wheel.
+license = "Apache-2.0 AND LicenseRef-Maned-EULA"
+license-files = ["LICENSE", "LICENSE-libmaned_c", "NOTICE"]
+
+[project.urls]
+Homepage = "https://maned-lang.com"
+Source = "https://github.com/FabianoDicheti/manedpy"
+Changelog = "https://github.com/FabianoDicheti/manedpy/releases"
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
@@ -20,8 +27,9 @@ test = ["pytest>=7"]
 packages = ["manedpy"]
 
 [tool.setuptools.package-data]
-# The wheel-building CI drops the library here out of maned-capi-$VERSION-$target.tar.gz;
-# a source checkout leaves it empty and relies on $MANEDPY_LIB.
+# tools/build_wheels.sh drops the library here out of
+# maned-capi-$VERSION-$target.tar.gz; a source checkout leaves it empty and
+# relies on $MANEDPY_LIB.
 manedpy = ["_lib/*"]
 
 [tool.pytest.ini_options]

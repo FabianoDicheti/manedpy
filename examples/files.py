@@ -19,6 +19,7 @@ import os
 from manedpy import maned as mnd
 
 here = os.path.dirname(os.path.abspath(__file__))
+os.chdir(here)  # the scripts' own csv() sources resolve against the CWD
 script = mnd.load(os.path.join(here, "pipeline.mnd"))
 
 with open(os.path.join(here, "data.csv"), "rb") as f:

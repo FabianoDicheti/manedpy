@@ -17,7 +17,52 @@ A response computed here is **byte-identical** to what `maned-serve` answers ove
 the same script and body — that is a CI fact, not a promise: `tests/test_rest_parity.py`
 launches `maned-serve`, POSTs the same bytes, and compares.
 
-## Installing
+## Quickstart
+
+```sh
+pip install manedpy
+```
+
+The wheel bundles the engine library — nothing else to install (macOS
+universal, Linux x86-64/arm64; Python ≥3.9). Then, step by step:
+
+1. Save a script as `scoring.mnd`:
+
+```mnd
+mnd::quantmax=30000;
+mnd::quantmin=-30000;
+mnd::quantres=0;
+
+in::w = [[1,2],[0,1]];
+
+calc::lambda_flow scoring(x, w) {
+    w x matmul y =
+} return y;
+
+out::y = csv("y.csv");
+```
+
+2. Save this as `scoring.py` next to it:
+
+```python
+from manedpy import maned as mnd
+
+script = mnd.load("scoring.mnd")
+result = script.run({"x": [[2, 0], [0, 2]]})
+print("y =", result.outputs["y"])
+```
+
+3. Run it:
+
+```sh
+$ python scoring.py
+y = [[2, 4], [0, 2]]
+```
+
+The same pair lives in [`examples/`](examples/), runnable as
+`python examples/scoring.py`.
+
+## Installing from a source checkout
 
 A wheel bundles `libmaned_c` in `manedpy/_lib/`. In a source checkout that directory is
 empty, so point `$MANEDPY_LIB` at a `libmaned_c` from a `maned-capi-*` tarball:

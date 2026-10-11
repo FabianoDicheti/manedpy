@@ -60,7 +60,9 @@ y = [[2, 4], [0, 2]]
 ```
 
 The same pair lives in [`examples/`](examples/), runnable as
-`python examples/scoring.py`.
+`python examples/scoring.py` — alongside three deep dives:
+`files.py` (file routes: bytes in, output files back), `decimals.py`
+(exact decimals), `routed.py` (the local Bark VM).
 
 ## Installing from a source checkout
 

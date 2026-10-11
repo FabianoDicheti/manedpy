@@ -24,8 +24,11 @@
 # ---------------------------------------------------------------------------
 set -eu
 
-CAPI_DIR=${1:?usage: build_wheels.sh <dir with maned-capi tarballs> [version]}
+CAPI_DIR=${1:?usage: build_wheels.sh <dir with maned-capi tarballs> [version] [capi-version]}
 VERSION=${2:-$(sed -n 's/^version = "\(.*\)"/\1/p' "$(dirname "$0")/../pyproject.toml")}
+# The ENGINE version the tarballs carry - the package version may run ahead
+# of it (docs-only patch releases). BUILT_AGAINST is stamped with this.
+CAPI_VERSION=${3:-$(ls "$CAPI_DIR" | sed -n 's/^maned-capi-\(.*\)-universal-apple-darwin.tar.gz$/\1/p' | head -1)}
 
 cd "$(dirname "$0")/.."
 [ -z "$(git status --porcelain)" ] || { echo "build_wheels.sh: tree is dirty; commit or stash first" >&2; exit 1; }
@@ -46,14 +49,14 @@ tar tzf "dist/manedpy-$VERSION.tar.gz" | grep -q '_lib/libmaned_c' \
 
 build_one() {
   target=$1; plat=$2; libname=$3
-  tb="$CAPI_DIR/maned-capi-$VERSION-$target.tar.gz"
+  tb="$CAPI_DIR/maned-capi-$CAPI_VERSION-$target.tar.gz"
   [ -f "$tb" ] || { echo "missing $tb" >&2; exit 1; }
   work=$(mktemp -d); tar xzf "$tb" -C "$work"
   rm -f manedpy/_lib/libmaned_c.*
   # -L: the Linux tarball ships a SONAME symlink chain; the loader opens
   # _lib/<canonical name> by absolute path, so bundle ONE real file.
-  cp -L "$work/maned-capi-$VERSION-$target/lib/$libname" "manedpy/_lib/$libname"
-  sed -i.bak "s/^BUILT_AGAINST = None/BUILT_AGAINST = \"$VERSION\"/" manedpy/_lib.py && rm manedpy/_lib.py.bak
+  cp -L "$work/maned-capi-$CAPI_VERSION-$target/lib/$libname" "manedpy/_lib/$libname"
+  sed -i.bak "s/^BUILT_AGAINST = None/BUILT_AGAINST = \"$CAPI_VERSION\"/" manedpy/_lib.py && rm manedpy/_lib.py.bak
   "$PY" -m build --wheel >/dev/null
   "$PY" -m wheel tags --platform-tag "$plat" --remove "dist/manedpy-$VERSION-py3-none-any.whl" >/dev/null
   git checkout -q -- manedpy/_lib.py

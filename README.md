@@ -1,3 +1,5 @@
+![the maned mark, in Python's colors](https://raw.githubusercontent.com/FabianoDicheti/manedpy/master/docs/img/logo.png)
+
 # manedpy
 
 Call `.mnd` scripts from Python, in-process — the JSON document `/run.json` returns,
@@ -109,6 +111,8 @@ A `Script` takes a lock per call by default, which makes the routed case correct
 construction. Non-routed scripts are provably safe to call concurrently on one handle, so
 `mnd.load(path, concurrent=True)` drops the lock — and is refused at load time if the
 script routes to a device.
+
+![a maned wolf with two snakes](https://raw.githubusercontent.com/FabianoDicheti/manedpy/master/docs/img/wolf.png)
 
 ## Licensing — read this before packaging
 
